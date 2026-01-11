@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'dart:math';
+import 'dart:io' show Platform;
 
+import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -30,6 +33,7 @@ AppBar appBarBase(
 }
 
 Future<void> showOpenSettingsHelp(BuildContext context, {required String forWhat}) async {
+  
   // UI-only (no extra deps). You can add url_launcher or permission_handler later.
   await showDialog(
     context: context,
@@ -95,6 +99,257 @@ void _ensureUserInMemory(AppUser user) {
   if (!exists) _registeredUsers.add(user);
 }
 
+
+/// ======================= DISEASE DATA MODEL =======================
+
+class PlantDisease {
+  final String crop;
+  final String name;
+  final String summary;
+  final String suggestedActions;
+  final String overview;
+  final String symptoms;
+  final String management;
+
+  const PlantDisease({
+    required this.crop,
+    required this.name,
+    required this.summary,
+    required this.suggestedActions,
+    required this.overview,
+    required this.symptoms,
+    required this.management,
+  });
+}
+
+
+final List<PlantDisease> plantDiseases = [
+  // ================= TOMATO =================
+  const PlantDisease(
+    crop: 'Tomato',
+    name: 'Healthy',
+    summary: '• Leaf appears healthy.\n• No strong disease patterns detected.',
+    suggestedActions:
+        '• Keep regular watering and balanced nutrition.\n'
+        '• Avoid wetting leaves for long periods.\n'
+        '• Keep monitoring (new symptoms can appear later).',
+    overview: 'The model predicted a healthy tomato leaf.',
+    symptoms: '• No major spots, halos, or mold-like growth detected.',
+    management:
+        '• Maintain field hygiene.\n'
+        '• Ensure good airflow between plants.\n'
+        '• Monitor weekly for early symptoms.',
+  ),
+  const PlantDisease(
+    crop: 'Tomato',
+    name: 'Early blight',
+    summary: '• Dark concentric spots.\n• Often starts on older leaves.',
+    suggestedActions:
+        '• Remove heavily affected leaves.\n'
+        '• Improve airflow (spacing/pruning).\n'
+        '• Avoid overhead irrigation.',
+    overview: 'Fungal leaf disease commonly triggered by warm + humid conditions.',
+    symptoms: '• “Target-like” rings on spots.\n• Yellowing around lesions.',
+    management:
+        '• Remove plant debris.\n'
+        '• Rotate crops.\n'
+        '• Use recommended fungicide only if required by your local guidance.',
+  ),
+  const PlantDisease(
+    crop: 'Tomato',
+    name: 'Late blight',
+    summary: '• Water-soaked lesions.\n• Can spread fast in cool/wet weather.',
+    suggestedActions:
+        '• Remove infected tissue.\n'
+        '• Reduce leaf wetness.\n'
+        '• Separate sick plants if possible.',
+    overview: 'Aggressive disease that can rapidly damage tomato foliage.',
+    symptoms: '• Dark irregular lesions.\n• Possible white growth underneath leaves in humidity.',
+    management:
+        '• Improve airflow.\n'
+        '• Monitor daily during high-risk weather.\n'
+        '• Follow local control recommendations if outbreaks occur.',
+  ),
+  const PlantDisease(
+    crop: 'Tomato',
+    name: 'Leaf mold',
+    summary: '• Yellow patches on top.\n• Olive/velvety mold under leaf.',
+    suggestedActions:
+        '• Reduce humidity.\n'
+        '• Increase ventilation.\n'
+        '• Remove affected leaves.',
+    overview: 'Common in humid, poorly ventilated environments.',
+    symptoms: '• Pale spots above.\n• Mold growth underneath.',
+    management:
+        '• Avoid wet foliage.\n'
+        '• Space plants.\n'
+        '• Use resistant varieties if available.',
+  ),
+  const PlantDisease(
+    crop: 'Tomato',
+    name: 'Septoria leaf spot',
+    summary: '• Small round spots.\n• Often many spots per leaf.',
+    suggestedActions:
+        '• Remove affected leaves.\n'
+        '• Avoid splashing water from soil.\n'
+        '• Improve airflow.',
+    overview: 'Leaf-spot disease that typically starts on lower leaves.',
+    symptoms: '• Tiny spots with darker border.\n• Yellowing as infection spreads.',
+    management:
+        '• Sanitation + crop rotation.\n'
+        '• Mulch to reduce soil splash.\n'
+        '• Local fungicide guidance if needed.',
+  ),
+  const PlantDisease(
+    crop: 'Tomato',
+    name: 'Spider mites',
+    summary: '• Speckled leaves.\n• Fine webbing may appear.',
+    suggestedActions:
+        '• Spray water under leaves (lightly).\n'
+        '• Remove heavily infested leaves.\n'
+        '• Isolate affected plant if possible.',
+    overview: 'Pest damage (not fungus). Often worse in hot/dry conditions.',
+    symptoms: '• Tiny yellow/white specks.\n• Webbing on underside.',
+    management:
+        '• Increase humidity slightly.\n'
+        '• Use safe pest control options based on local recommendations.',
+  ),
+  const PlantDisease(
+    crop: 'Tomato',
+    name: 'Target spot',
+    summary: '• Circular lesions with rings.\n• May enlarge over time.',
+    suggestedActions:
+        '• Remove infected leaves.\n'
+        '• Improve airflow.\n'
+        '• Avoid overhead watering.',
+    overview: 'Fungal-like spotting pattern that can reduce leaf area.',
+    symptoms: '• Target-like rings.\n• Yellowing around spots.',
+    management: '• Field hygiene + ventilation.\n• Rotate crops.',
+  ),
+  const PlantDisease(
+    crop: 'Tomato',
+    name: 'Yellow leaf curl virus',
+    summary: '• Leaf curling.\n• Yellowing and reduced growth.',
+    suggestedActions:
+        '• Remove severely affected plants.\n'
+        '• Control whiteflies (main spreader).\n'
+        '• Use healthy seedlings.',
+    overview: 'Virus disease commonly spread by whiteflies.',
+    symptoms: '• Curling + yellow margins.\n• Stunted growth.',
+    management:
+        '• Vector control (whiteflies).\n'
+        '• Use resistant varieties when available.',
+  ),
+  const PlantDisease(
+    crop: 'Tomato',
+    name: 'Mosaic virus',
+    summary: '• Mosaic pattern.\n• Distorted leaves possible.',
+    suggestedActions:
+        '• Remove infected plants.\n'
+        '• Disinfect tools.\n'
+        '• Avoid handling plants when wet.',
+    overview: 'Virus causing mottled leaf patterns and deformation.',
+    symptoms: '• Light/dark mosaic patches.\n• Leaf distortion.',
+    management:
+        '• Sanitation.\n'
+        '• Use clean seed/seedlings.\n'
+        '• Control mechanical spread.',
+  ),
+  const PlantDisease(
+    crop: 'Tomato',
+    name: 'General issue',
+    summary: '• Tomato-related class detected.\n• Not mapped to a specific card yet.',
+    suggestedActions: '• Check the leaf visually.\n• Compare with known symptoms.\n• Re-scan with clearer image.',
+    overview: 'This is a fallback card when the predicted class is not mapped.',
+    symptoms: '• Varies by condition.',
+    management: '• Use best practices: airflow, hygiene, avoid wet foliage.',
+  ),  
+
+  // ================= POTATO =================
+  const PlantDisease(
+    crop: 'Potato',
+    name: 'Healthy',
+    summary: '• Leaf appears healthy.\n• No strong disease pattern detected.',
+    suggestedActions: '• Maintain irrigation.\n• Keep scouting regularly.',
+    overview: 'The model predicted a healthy potato leaf.',
+    symptoms: '• No obvious lesions or mold growth.',
+    management: '• Keep preventive care.\n• Monitor lower leaves first.',
+  ),
+  const PlantDisease(
+    crop: 'Potato',
+    name: 'Early blight',
+    summary: '• Brown spots with rings.\n• Often on older leaves.',
+    suggestedActions: '• Remove debris.\n• Improve airflow.\n• Reduce leaf wetness.',
+    overview: 'Common potato leaf fungal disease.',
+    symptoms: '• Target-like rings.\n• Yellowing.',
+    management: '• Crop rotation.\n• Local protection guidance.',
+  ),
+  const PlantDisease(
+    crop: 'Potato',
+    name: 'Late blight',
+    summary: '• Dark wet lesions.\n• Can spread rapidly.',
+    suggestedActions: '• Remove infected foliage.\n• Avoid overhead watering.\n• Monitor closely.',
+    overview: 'High-risk disease in cool/wet conditions.',
+    symptoms: '• Dark patches.\n• Possible white growth in humidity.',
+    management: '• Hygiene.\n• Follow local recommendations.',
+  ),
+  const PlantDisease(
+    crop: 'Potato',
+    name: 'General issue',
+    summary: '• Potato-related class detected.\n• Not mapped to a specific card yet.',
+    suggestedActions: '• Re-scan.\n• Check lighting + focus.',
+    overview: 'Fallback potato card.',
+    symptoms: '• Varies.',
+    management: '• Field hygiene + monitoring.',
+  ),
+];
+
+
+PlantDisease mapClassNameToDisease(String className) {
+  final c = className.toLowerCase().trim();
+
+  bool has(String s) => c.contains(s);
+
+  // --- TOMATO ---
+  if (has('tomato')) {
+    if (has('healthy')) return plantDiseases.firstWhere((d) => d.crop == 'Tomato' && d.name == 'Healthy');
+    if (has('early_blight')) return plantDiseases.firstWhere((d) => d.crop == 'Tomato' && d.name == 'Early blight');
+    if (has('late_blight')) return plantDiseases.firstWhere((d) => d.crop == 'Tomato' && d.name == 'Late blight');
+    if (has('leaf_mold') || has('mold_leaf') || has('tomato_mold')) {
+      return plantDiseases.firstWhere((d) => d.crop == 'Tomato' && d.name == 'Leaf mold');
+    }
+    if (has('septoria')) return plantDiseases.firstWhere((d) => d.crop == 'Tomato' && d.name == 'Septoria leaf spot');
+    if (has('spider_mites')) return plantDiseases.firstWhere((d) => d.crop == 'Tomato' && d.name == 'Spider mites');
+    if (has('target_spot')) return plantDiseases.firstWhere((d) => d.crop == 'Tomato' && d.name == 'Target spot');
+    if (has('yellowleaf') || has('curl_virus') || has('yellow_virus')) {
+      return plantDiseases.firstWhere((d) => d.crop == 'Tomato' && d.name == 'Yellow leaf curl virus');
+    }
+    if (has('mosaic_virus')) return plantDiseases.firstWhere((d) => d.crop == 'Tomato' && d.name == 'Mosaic virus');
+
+    return plantDiseases.firstWhere((d) => d.crop == 'Tomato' && d.name == 'General issue');
+  }
+
+  // --- POTATO ---
+  if (has('potato')) {
+    if (has('healthy')) return plantDiseases.firstWhere((d) => d.crop == 'Potato' && d.name == 'Healthy');
+    if (has('early_blight')) return plantDiseases.firstWhere((d) => d.crop == 'Potato' && d.name == 'Early blight');
+    if (has('late_blight')) return plantDiseases.firstWhere((d) => d.crop == 'Potato' && d.name == 'Late blight');
+    return plantDiseases.firstWhere((d) => d.crop == 'Potato' && d.name == 'General issue');
+  }
+
+  // --- PEPPER ---
+  if (has('pepper') || has('bell_pepper')) {
+    if (has('healthy')) return plantDiseases.firstWhere((d) => d.crop == 'Pepper' && d.name == 'Healthy');
+    if (has('bacterial_spot')) return plantDiseases.firstWhere((d) => d.crop == 'Pepper' && d.name == 'Bacterial spot');
+    return plantDiseases.firstWhere((d) => d.crop == 'Pepper' && d.name == 'General issue');
+  }
+
+  // --- APPLE / GRAPE (if your bundle contains them) ---
+
+  // fallback
+  return plantDiseases.first;
+}
+
 /// ======================= PERSISTENCE HELPERS =======================
 
 Future<void> saveUser(AppUser user) async {
@@ -131,310 +386,6 @@ Future<void> clearUser() async {
   await prefs.remove('password');
 }
 
-/// ======================= DISEASE DATA MODEL =======================
-
-class PlantDisease {
-  final String crop;
-  final String name;
-  final String summary;
-  final String suggestedActions;
-  final String overview;
-  final String symptoms;
-  final String management;
-
-  const PlantDisease({
-    required this.crop,
-    required this.name,
-    required this.summary,
-    required this.suggestedActions,
-    required this.overview,
-    required this.symptoms,
-    required this.management,
-  });
-}
-
-/// Fake dataset (Tomato / Potato / Pepper)
-final List<PlantDisease> plantDiseases = [
-  // TOMATO
-  const PlantDisease(
-    crop: 'Tomato',
-    name: 'Early blight',
-    summary:
-        '• Dark concentric spots on older leaves.\n• Yellowing around lesions.\n• Can lead to leaf drop in severe cases.',
-    suggestedActions:
-        '• Remove heavily infected leaves and dispose of them away from the field.\n'
-        '• Avoid overhead irrigation; water near the soil surface.\n'
-        '• Improve spacing and airflow around plants.\n'
-        '• Rotate crops and avoid planting tomatoes in the same soil every year.',
-    overview:
-        'Early blight is a common fungal disease of tomato leaves caused by Alternaria solani. '
-        'It is favored by warm, humid conditions and often starts on older foliage.',
-    symptoms:
-        '• Dark brown spots with concentric “bullseye” rings on older leaves.\n'
-        '• Yellowing around lesions, followed by leaf drop.\n'
-        '• In severe infections, stems and fruits may also be affected.',
-    management:
-        '• Remove infected plant debris at the end of the season.\n'
-        '• Use drip irrigation instead of overhead watering.\n'
-        '• Ensure good plant spacing for airflow.\n'
-        '• Use resistant varieties when available and follow local fungicide recommendations.',
-  ),
-  const PlantDisease(
-    crop: 'Tomato',
-    name: 'Late blight',
-    summary:
-        '• Water-soaked, gray-green lesions.\n• White mold-like growth at lesion edges.\n• Can rapidly destroy foliage.',
-    suggestedActions:
-        '• Remove and destroy severely infected plants.\n'
-        '• Avoid overhead irrigation and reduce leaf wetness duration.\n'
-        '• Monitor nearby plants closely for new lesions.\n'
-        '• Follow local guidelines for late blight control programs.',
-    overview:
-        'Late blight is a destructive disease of tomato and potato caused by Phytophthora infestans. '
-        'It can spread quickly under cool, wet conditions.',
-    symptoms:
-        '• Large, irregularly shaped, water-soaked lesions on leaves.\n'
-        '• Lesions may turn dark brown; white growth can appear in humidity.\n'
-        '• Stems and fruits can also become infected.',
-    management:
-        '• Remove infected plants and cull piles.\n'
-        '• Avoid dense plantings and improve ventilation.\n'
-        '• Use disease-free transplants.\n'
-        '• Apply recommended fungicides when risk is high in your region.',
-  ),
-  const PlantDisease(
-    crop: 'Tomato',
-    name: 'Leaf mold',
-    summary:
-        '• Pale green spots on upper leaf surface.\n• Olive-green velvety growth underneath.\n• Favored by high humidity.',
-    suggestedActions:
-        '• Reduce humidity and improve airflow.\n'
-        '• Remove affected leaves.\n'
-        '• Avoid wetting foliage when watering.\n'
-        '• Consider resistant varieties if available.',
-    overview:
-        'Tomato leaf mold is caused by the fungus Fulvia fulva and is common in humid, poorly ventilated conditions.',
-    symptoms:
-        '• Yellow/pale spots on top of leaves.\n'
-        '• Olive-green to brown “mold” underneath.\n'
-        '• Older leaves are affected first.',
-    management:
-        '• Ventilate growing areas and reduce leaf wetness.\n'
-        '• Remove infected leaves.\n'
-        '• Use resistant cultivars when possible.\n'
-        '• Apply fungicides if needed and permitted.',
-  ),
-
-  // POTATO
-  const PlantDisease(
-    crop: 'Potato',
-    name: 'Early blight',
-    summary:
-        '• Brown spots with concentric rings.\n• Starts on older leaves.\n• Can reduce yield and tuber size.',
-    suggestedActions:
-        '• Remove crop debris after harvest.\n'
-        '• Rotate with non-host crops.\n'
-        '• Avoid plant stress (balanced fertilization).\n'
-        '• Use certified seed when possible.',
-    overview:
-        'Potato early blight is caused by Alternaria solani and appears commonly in warm, humid conditions.',
-    symptoms:
-        '• Brown lesions with target-like rings.\n'
-        '• Yellowing and premature leaf drop.\n'
-        '• Occasionally stems/tubers can show lesions.',
-    management:
-        '• Practice crop rotation and remove volunteer plants.\n'
-        '• Reduce leaf wetness and improve airflow.\n'
-        '• Follow local fungicide guidance when pressure is high.',
-  ),
-  const PlantDisease(
-    crop: 'Potato',
-    name: 'Late blight',
-    summary:
-        '• Dark water-soaked lesions.\n• White growth at lesion edges in humidity.\n• Can rot tubers in storage.',
-    suggestedActions:
-        '• Remove infected foliage promptly.\n'
-        '• Avoid overhead irrigation.\n'
-        '• Harvest carefully to avoid tuber injury.\n'
-        '• Store tubers cool and dry; remove rotting tubers.',
-    overview:
-        'Late blight of potato is caused by Phytophthora infestans and can spread quickly under cool, wet conditions.',
-    symptoms:
-        '• Dark lesions on leaves/stems.\n'
-        '• White fungal growth in humid conditions.\n'
-        '• Brown, firm tuber lesions that can expand.',
-    management:
-        '• Use certified seed and destroy cull piles.\n'
-        '• Consider resistant cultivars.\n'
-        '• Apply protective fungicides when risk is high.\n'
-        '• Maintain good storage hygiene.',
-  ),
-  const PlantDisease(
-    crop: 'Potato',
-    name: 'Healthy',
-    summary:
-        '• Uniform green leaves.\n• No visible lesions or halos.\n• Canopy looks vigorous.',
-    suggestedActions:
-        '• Continue regular scouting.\n'
-        '• Maintain balanced irrigation and nutrition.\n'
-        '• Keep good field hygiene to reduce disease risk.',
-    overview: 'No significant disease symptoms were detected on the scanned potato leaf.',
-    symptoms:
-        '• Leaf surface clean and evenly colored.\n'
-        '• No necrotic spots, mold growth, or distortions.',
-    management:
-        '• Keep preventive practices.\n'
-        '• Avoid overwatering and support airflow.\n'
-        '• Inspect lower leaves regularly for early changes.',
-  ),
-
-  // PEPPER
-  const PlantDisease(
-    crop: 'Pepper',
-    name: 'Bacterial spot',
-    summary:
-        '• Small water-soaked spots.\n• Spots may turn brown with halos.\n• Severe cases can defoliate plants.',
-    suggestedActions:
-        '• Avoid working when foliage is wet.\n'
-        '• Use drip irrigation instead of overhead watering.\n'
-        '• Remove severely infected plants.\n'
-        '• Use disease-free seed/transplants.',
-    overview:
-        'Bacterial spot of pepper is caused by Xanthomonas species and affects leaves and fruits, especially in wet conditions.',
-    symptoms:
-        '• Small water-soaked spots that become brown.\n'
-        '• Yellow halos around lesions.\n'
-        '• Fruit can develop raised, scabby spots.',
-    management:
-        '• Rotate away from solanaceous crops for 2–3 years.\n'
-        '• Control weeds and volunteer plants.\n'
-        '• Follow local recommendations (e.g., copper sprays).\n'
-        '• Use resistant varieties when available.',
-  ),
-  const PlantDisease(
-    crop: 'Pepper',
-    name: 'Healthy',
-    summary:
-        '• Leaves uniformly green.\n• No visible lesions.\n• Plant vigor appears normal.',
-    suggestedActions:
-        '• Maintain regular scouting.\n'
-        '• Avoid prolonged leaf wetness.\n'
-        '• Keep crop hygiene and remove damaged leaves.',
-    overview: 'No major disease indicators were observed on the scanned pepper leaf.',
-    symptoms:
-        '• No visible lesions, spots, or discoloration patterns.\n'
-        '• Leaf edges appear intact.',
-    management:
-        '• Continue good cultural practices.\n'
-        '• Maintain airflow and proper irrigation.\n'
-        '• Monitor after rain or irrigation events.',
-  ),
-];
-
-PlantDisease pickRandomDisease() {
-  final rnd = Random();
-  return plantDiseases[rnd.nextInt(plantDiseases.length)];
-}
-
-/// ======================= HISTORY MODEL + PERSISTENCE =======================
-
-class ScanPreview {
-  final String date;
-  final String time;
-  final String plantName;
-
-  const ScanPreview({
-    required this.date,
-    required this.time,
-    required this.plantName,
-  });
-
-  Map<String, dynamic> toJson() => {'date': date, 'time': time, 'plantName': plantName};
-
-  static ScanPreview fromJson(Map<String, dynamic> json) {
-    return ScanPreview(
-      date: (json['date'] ?? '').toString(),
-      time: (json['time'] ?? '').toString(),
-      plantName: (json['plantName'] ?? '').toString(),
-    );
-  }
-}
-
-final ValueNotifier<List<ScanPreview>> historyNotifier = ValueNotifier<List<ScanPreview>>([]);
-
-Future<void> saveHistory(List<ScanPreview> scans) async {
-  final prefs = await SharedPreferences.getInstance();
-  final list = scans.map((e) => e.toJson()).toList();
-  await prefs.setString('scan_history', jsonEncode(list));
-}
-
-Future<List<ScanPreview>> loadHistory() async {
-  final prefs = await SharedPreferences.getInstance();
-  final raw = prefs.getString('scan_history');
-  if (raw == null) return [];
-
-  final decoded = jsonDecode(raw);
-  if (decoded is! List) return [];
-
-  return decoded.map((e) => ScanPreview.fromJson(Map<String, dynamic>.from(e as Map))).toList();
-}
-
-/// ======================= NOTIFICATIONS MODEL + PERSISTENCE =======================
-
-class AppNotification {
-  final String title;
-  final String message;
-  final String time; // simple display string
-
-  const AppNotification({
-    required this.title,
-    required this.message,
-    required this.time,
-  });
-
-  Map<String, dynamic> toJson() => {'title': title, 'message': message, 'time': time};
-
-  static AppNotification fromJson(Map<String, dynamic> json) {
-    return AppNotification(
-      title: (json['title'] ?? '').toString(),
-      message: (json['message'] ?? '').toString(),
-      time: (json['time'] ?? '').toString(),
-    );
-  }
-}
-
-final ValueNotifier<List<AppNotification>> notificationsNotifier = ValueNotifier<List<AppNotification>>([]);
-
-Future<void> saveNotifications(List<AppNotification> items) async {
-  final prefs = await SharedPreferences.getInstance();
-  final list = items.map((e) => e.toJson()).toList();
-  await prefs.setString('app_notifications', jsonEncode(list));
-}
-
-Future<List<AppNotification>> loadNotifications() async {
-  final prefs = await SharedPreferences.getInstance();
-  final raw = prefs.getString('app_notifications');
-  if (raw == null) return [];
-
-  final decoded = jsonDecode(raw);
-  if (decoded is! List) return [];
-
-  return decoded.map((e) => AppNotification.fromJson(Map<String, dynamic>.from(e as Map))).toList();
-}
-
-Future<void> addNotification(AppNotification n) async {
-  final current = List<AppNotification>.from(notificationsNotifier.value);
-  current.add(n);
-  notificationsNotifier.value = current;
-  await saveNotifications(current);
-}
-
-Future<void> clearNotifications() async {
-  notificationsNotifier.value = [];
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.remove('app_notifications');
-}
-
 /// ======================= SPLASH =======================
 
 class SplashScreen extends StatefulWidget {
@@ -451,30 +402,33 @@ class _SplashScreenState extends State<SplashScreen> {
     _bootstrap();
   }
 
+  // Bootstrapping the app: Check for saved user and navigate accordingly
   Future<void> _bootstrap() async {
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
+  await Future.delayed(const Duration(seconds: 2));  // Simulate splash screen delay
 
-    final savedUser = await loadUser();
-    if (!mounted) return;
+  if (!mounted) return;  // Ensure widget is still mounted
 
-    if (savedUser != null) {
-      _ensureUserInMemory(savedUser); // ✅ restore user to in-memory list
-      currentUserNotifier.value = savedUser;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeShell()),
-      );
-    } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
-    }
+  final savedUser = await loadUser();  // Load user from shared preferences
+
+  if (savedUser != null) {
+    _ensureUserInMemory(savedUser);  // Restore user to in-memory list
+    currentUserNotifier.value = savedUser;  // Update the current user
+    if (!mounted) return; // Add mounted check before navigation
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const HomeShell()),  // Navigate to HomeShell if user is found
+    );
+  } else {
+    if (!mounted) return; // Add mounted check before navigation
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),  // Navigate to LoginScreen if no user is found
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {
-    const backgroundColor = Color(0xFFD9F5D1);
-    const darkGreen = Color(0xFF2E7D32);
+    const backgroundColor = Color(0xFFD9F5D1);  // Light green background
+    const darkGreen = Color(0xFF2E7D32);  // Dark green color for text and icon
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -485,16 +439,16 @@ class _SplashScreenState extends State<SplashScreen> {
             const CircleAvatar(
               radius: 60,
               backgroundColor: Colors.white,
-              child: Icon(Icons.spa, size: 60, color: darkGreen),
+              child: Icon(Icons.spa, size: 60, color: darkGreen),  // The spa icon
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 24),  // Space between icon and text
             const Text(
               'Plantlly',
               style: TextStyle(
                 fontSize: 32,
-                fontWeight: FontWeight.w800,
-                color: darkGreen,
-                letterSpacing: 0.5,
+                fontWeight: FontWeight.w800,  // Bold font
+                color: darkGreen,  // Dark green text color
+                letterSpacing: 0.5,  // Small letter spacing
               ),
             ),
           ],
@@ -562,7 +516,6 @@ class _LoginScreenState extends State<LoginScreen> {
     currentUserNotifier.value = user;
     await saveUser(user);
     if (!mounted) return;
-
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const HomeShell()),
     );
@@ -810,6 +763,207 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 }
 
+
+
+
+/// ======================= HISTORY MODEL + PERSISTENCE =======================
+
+class ScanPreview {
+  final String date;
+  final String time;
+  final String plantName;
+
+  const ScanPreview({
+    required this.date,
+    required this.time,
+    required this.plantName,
+  });
+
+  Map<String, dynamic> toJson() => {'date': date, 'time': time, 'plantName': plantName};
+
+  static ScanPreview fromJson(Map<String, dynamic> json) {
+    return ScanPreview(
+      date: (json['date'] ?? '').toString(),
+      time: (json['time'] ?? '').toString(),
+      plantName: (json['plantName'] ?? '').toString(),
+    );
+  }
+}
+
+final ValueNotifier<List<ScanPreview>> historyNotifier = ValueNotifier<List<ScanPreview>>([]);
+
+Future<void> saveHistory(List<ScanPreview> scans) async {
+  final prefs = await SharedPreferences.getInstance();
+  final list = scans.map((e) => e.toJson()).toList();
+  await prefs.setString('scan_history', jsonEncode(list));
+}
+
+Future<List<ScanPreview>> loadHistory() async {
+  final prefs = await SharedPreferences.getInstance();
+  final raw = prefs.getString('scan_history');
+  if (raw == null) return [];
+
+  final decoded = jsonDecode(raw);
+  if (decoded is! List) return [];
+
+  return decoded.map((e) => ScanPreview.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+}
+
+/// ======================= NOTIFICATIONS MODEL + PERSISTENCE =======================
+
+class AppNotification {
+  final String title;
+  final String message;
+  final String time; // simple display string
+
+  const AppNotification({
+    required this.title,
+    required this.message,
+    required this.time,
+  });
+
+  Map<String, dynamic> toJson() => {'title': title, 'message': message, 'time': time};
+
+  static AppNotification fromJson(Map<String, dynamic> json) {
+    return AppNotification(
+      title: (json['title'] ?? '').toString(),
+      message: (json['message'] ?? '').toString(),
+      time: (json['time'] ?? '').toString(),
+    );
+  }
+}
+
+final ValueNotifier<List<AppNotification>> notificationsNotifier = ValueNotifier<List<AppNotification>>([]);
+
+Future<void> saveNotifications(List<AppNotification> items) async {
+  final prefs = await SharedPreferences.getInstance();
+  final list = items.map((e) => e.toJson()).toList();
+  await prefs.setString('app_notifications', jsonEncode(list));
+}
+
+Future<List<AppNotification>> loadNotifications() async {
+  final prefs = await SharedPreferences.getInstance();
+  final raw = prefs.getString('app_notifications');
+  if (raw == null) return [];
+
+  final decoded = jsonDecode(raw);
+  if (decoded is! List) return [];
+
+  return decoded.map((e) => AppNotification.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+}
+
+Future<void> addNotification(AppNotification n) async {
+  final current = List<AppNotification>.from(notificationsNotifier.value);
+  current.add(n);
+  notificationsNotifier.value = current;
+  await saveNotifications(current);
+}
+
+Future<void> clearNotifications() async {
+  notificationsNotifier.value = [];
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove('app_notifications');
+}
+
+/// ======================= API INFERENCE =======================
+
+class InferenceItem {
+  final int classIndex;
+  final String className;
+  final double confidence;
+
+  InferenceItem({
+    required this.classIndex,
+    required this.className,
+    required this.confidence,
+  });
+
+  factory InferenceItem.fromJson(Map<String, dynamic> j) {
+    return InferenceItem(
+      classIndex: j['class_index'] as int,
+      className: j['class_name'].toString(),
+      confidence: (j['confidence'] as num).toDouble(),
+    );
+  }
+}
+
+class InferenceResponse {
+  final String modelUsed;
+  final List<InferenceItem> topk;
+
+  InferenceResponse({required this.modelUsed, required this.topk});
+
+  factory InferenceResponse.fromJson(Map<String, dynamic> j) {
+    return InferenceResponse(
+      modelUsed: j['model_used'].toString(),
+      topk: (j['topk'] as List)
+          .map((e) => InferenceItem.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+    );
+  }
+}
+
+class DualInferenceResult {
+  final InferenceResponse eff;
+  final InferenceResponse mob;
+  final InferenceItem bestItem;
+  final String bestModel;
+
+  DualInferenceResult({
+    required this.eff,
+    required this.mob,
+    required this.bestItem,
+    required this.bestModel,
+  });
+}
+
+String apiBaseUrl() {
+  if (!kIsWeb && Platform.isAndroid) {
+    return 'http://10.0.2.2:8000';
+  }
+  return 'http://127.0.0.1:8000';
+}
+
+Future<InferenceResponse> predictFromApi({
+  required Uint8List imageBytes,
+  String model = 'efficientnet_b3',
+  int topk = 3,
+}) async {
+  final uri = Uri.parse('${apiBaseUrl()}/predict?model=$model&topk=$topk');
+
+  final req = http.MultipartRequest('POST', uri);
+  req.files.add(
+    http.MultipartFile.fromBytes('file', imageBytes, filename: 'leaf.jpg'),
+  );
+
+  final res = await req.send();
+  final body = await res.stream.bytesToString();
+
+  if (res.statusCode != 200) {
+    throw Exception('API error ${res.statusCode}: $body');
+  }
+
+  return InferenceResponse.fromJson(jsonDecode(body));
+}
+
+class BestPrediction {
+  final String modelUsed;
+  final InferenceItem item;
+
+  BestPrediction({required this.modelUsed, required this.item});
+}
+
+BestPrediction pickBestOfTwo(InferenceResponse a, InferenceResponse b) {
+  final aBest = a.topk.first;
+  final bBest = b.topk.first;
+
+  if (aBest.confidence >= bBest.confidence) {
+    return BestPrediction(modelUsed: a.modelUsed, item: aBest);
+  } else {
+    return BestPrediction(modelUsed: b.modelUsed, item: bBest);
+  }
+}
+
 /// ======================= HOME SHELL (BOTTOM NAV) =======================
 
 class HomeShell extends StatefulWidget {
@@ -868,6 +1022,78 @@ class _HomeShellState extends State<HomeShell> {
     );
   }
 }
+
+class PredictPlantDiseaseScreen extends StatefulWidget {
+  const PredictPlantDiseaseScreen({super.key}); // Added key to super constructor
+
+  @override
+  PredictPlantDiseaseScreenState createState() => PredictPlantDiseaseScreenState(); // Changed to public name
+}
+
+class PredictPlantDiseaseScreenState extends State<PredictPlantDiseaseScreen> { // Removed underscore for public class
+  final _picker = ImagePicker();
+  String _predictionResult = 'No prediction yet';
+
+  // Image picking method
+  Future<void> _pickImage() async {
+    final pickedFile = await _picker.pickImage(source: ImageSource.camera);
+
+    if (pickedFile != null) {
+      await uploadImage(pickedFile); // Send the image for prediction
+    }
+  }
+
+  // Upload the image to the FastAPI server
+  // Example: Upload image function with mounted check
+Future<void> uploadImage(XFile imageFile) async {
+  final bytes = await imageFile.readAsBytes();
+
+  var request = http.MultipartRequest('POST', Uri.parse('http://10.0.2.2:8000/predict'));
+  request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: 'leaf.jpg'));
+
+  var response = await request.send();
+
+  if (!mounted) return;  // Ensure widget is still mounted
+
+  if (response.statusCode == 200) {
+    final responseString = await response.stream.bytesToString();
+    if (!mounted) return;  // Ensure widget is still mounted before calling setState
+    setState(() {
+      _predictionResult = responseString;
+    });
+  } else {
+    if (!mounted) return;  // Ensure widget is still mounted before calling setState
+
+    setState(() {
+      _predictionResult = 'Failed to get predictions.';
+    });
+  }
+}
+
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Plant Disease Prediction')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Button to capture image
+            ElevatedButton(
+              onPressed: _pickImage, // Call the _pickImage method when the button is pressed
+              child: Text('Capture Image'),
+            ),
+            SizedBox(height: 20),
+            // Display the prediction result
+            Text(_predictionResult), // Show the result from the prediction API
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 
 /// ======================= DASHBOARD TAB =======================
 
@@ -1106,6 +1332,661 @@ class _RecentScanCard extends StatelessWidget {
     );
   }
 }
+
+/// ======================= LOWER CARDS =======================
+class _ModelOverviewCard extends StatelessWidget {
+  const _ModelOverviewCard();
+
+  @override
+  Widget build(BuildContext context) {
+    const darkGreen = Color(0xFF1B5E20);
+
+    return Container(
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Model Overview', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: darkGreen)),
+          const SizedBox(height: 8),
+          const Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _InfoChip(icon: Icons.memory_outlined, label: 'Model: EfficientNetB3'),
+              _InfoChip(icon: Icons.insights_outlined, label: 'Confidence: 95%'),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text('Live mode: predictions are generated by the Deep Learning Models (EfficientNetB3 + MobileNetV2).', style: TextStyle(fontSize: 11)),
+        ],
+      ),
+    );
+  }
+}
+
+class _TipsCard extends StatelessWidget {
+  const _TipsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
+      padding: const EdgeInsets.all(12),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Tips', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1B5E20))),
+          SizedBox(height: 8),
+          Text(
+            '• Use a single, clear leaf in the frame.\n'
+            '• Avoid strong shadows or very dark images.\n'
+            '• Try to fill most of the image with the leaf.\n'
+            '• Scan multiple leaves for more reliable results.',
+            style: TextStyle(fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _InfoChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(color: const Color(0xFFE5F7E0), borderRadius: BorderRadius.circular(20)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14),
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+}
+
+
+
+/// ======================= SCAN LEAF =======================
+class ScanLeafScreen extends StatefulWidget {
+  const ScanLeafScreen({super.key});
+
+  @override
+  State<ScanLeafScreen> createState() => _ScanLeafScreenState();
+}
+
+class _ScanLeafScreenState extends State<ScanLeafScreen> {
+  String _predictionResult = 'No prediction yet';
+  bool _isAnalyzing = false;  // To manage the analyzing state
+
+  final ImagePicker _picker = ImagePicker();
+
+  // Image picking method
+  Future<void> _pickImageAndUpload(ImageSource source) async {
+    if (!mounted) return;
+
+    // Start the analyzing state
+    setState(() {
+      _isAnalyzing = true;
+    });
+
+    final pickedFile = await _picker.pickImage(source: source);
+
+    if (pickedFile != null) {
+      await uploadImage(pickedFile); // Upload the image if captured
+    } else {
+      // Stop analyzing if no image is picked
+      setState(() {
+        _isAnalyzing = false;
+      });
+    }
+  }
+
+  // Upload the image to the server for prediction and safely update _predictionResult
+  Future<void> uploadImage(XFile imageFile) async {
+    if (!mounted) return;  // Ensure the widget is still mounted
+
+    try {
+      final bytes = await imageFile.readAsBytes();
+
+      var request = http.MultipartRequest('POST', Uri.parse('http://10.0.2.2:8000/predict'))
+        ..files.add(http.MultipartFile.fromBytes('file', bytes, filename: 'leaf.jpg'));
+
+      var response = await request.send();
+
+      if (!mounted) return;  // Ensure the widget is still mounted
+
+      if (response.statusCode == 200) {
+        final responseString = await response.stream.bytesToString();
+
+        if (!mounted) return;  // Guard against using context after async gap
+
+        setState(() {
+          _predictionResult = responseString;  // Safely update the result
+          _isAnalyzing = false; // Stop analyzing when prediction is done
+        });
+
+        // Show result in a SnackBar
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(responseString)));
+      } else {
+        if (!mounted) return;
+
+        setState(() {
+          _predictionResult = 'Failed to get predictions';  // Safely update state if failed
+          _isAnalyzing = false; // Stop analyzing
+        });
+
+        // Show error in a SnackBar
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to get predictions')));
+      }
+    } catch (e) {
+      if (!mounted) return;  // Ensure the widget is still mounted
+
+      setState(() {
+        _predictionResult = 'Error occurred: $e';  // Safely update state on error
+        _isAnalyzing = false;  // Stop analyzing
+      });
+
+      // Show error in a SnackBar
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error occurred: $e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Scan Leaf')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // If analyzing, show the "Analyzing" screen
+            if (_isAnalyzing)
+              const CircularProgressIndicator(),
+            // If not analyzing, show buttons to capture or choose an image
+            if (!_isAnalyzing) ...[
+              ElevatedButton(
+                onPressed: () => _pickImageAndUpload(ImageSource.camera),
+                child: Text('Capture Image'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => _pickImageAndUpload(ImageSource.gallery),
+                child: Text('Choose from Gallery'),
+              ),
+            ],
+            const SizedBox(height: 20),
+            Text(_predictionResult),  // Display the prediction result or error
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// ======================= ANALYZING SCREEN =======================
+class AnalyzingScreen extends StatelessWidget {
+  const AnalyzingScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    const bg = Color(0xFFFFFDF5);
+    const darkGreen = Color(0xFF1B5E20);
+
+    return Scaffold(
+      backgroundColor: bg,
+      appBar: appBarBase('Analyzing...', bg: bg),
+      body: Center(
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 12),
+              Text(
+                'Analyzing your leaf...\nPlease wait a moment.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: darkGreen),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+
+/// ======================= SCAN RESULT =======================
+class ScanResultScreen extends StatefulWidget {
+  final Uint8List? imageBytes;
+  final PlantDisease plantDisease;
+  final String? modelUsed;
+  final double? confidence;
+  final String? rawClassName;
+
+  const ScanResultScreen({
+    super.key,
+    this.imageBytes,
+    required this.plantDisease,
+    this.modelUsed,
+    this.confidence,
+    this.rawClassName,
+  });
+
+  @override
+  State<ScanResultScreen> createState() => _ScanResultScreenState();
+}
+
+class _ScanResultScreenState extends State<ScanResultScreen> {
+  bool _saving = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final crop = widget.plantDisease.crop;
+    final diseaseName = widget.plantDisease.name;
+    final confidence = widget.confidence ?? 0.0;
+    final modelName = widget.modelUsed ?? 'Unknown';
+
+    const bg = Color(0xFFFFFDF5);
+    const darkGreen = Color(0xFF1B5E20);
+
+    return Scaffold(
+      backgroundColor: bg,
+      appBar: appBarBase('Scan Result', bg: bg),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (widget.imageBytes != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: SizedBox(
+                      width: 140,
+                      height: 140,
+                      child: Image.memory(widget.imageBytes!, fit: BoxFit.cover),
+                    ),
+                  )
+                else
+                  Container(
+                    width: 140,
+                    height: 140,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE5F7E0),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(Icons.eco_outlined, size: 48, color: darkGreen),
+                  ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Scan Result', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 8),
+                      _kvRow('Crop:', crop),
+                      const SizedBox(height: 4),
+                      _kvRow('Disease:', diseaseName),
+                      const SizedBox(height: 4),
+                      _kvRow('Model:', modelName),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(color: darkGreen, borderRadius: BorderRadius.circular(20)),
+                        child: Text(
+                          'Confidence: ${(confidence * 100).toStringAsFixed(0)}%',
+                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(color: const Color(0xFFFFF7CC), borderRadius: BorderRadius.circular(18)),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Summary', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                  const SizedBox(height: 8),
+                  Text(widget.plantDisease.summary, style: const TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text('Suggested Actions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            Text(widget.plantDisease.suggestedActions, style: const TextStyle(fontSize: 13)),
+            const Spacer(),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _saving
+                    ? null
+                    : () async {
+                      final messenger = ScaffoldMessenger.of(context); // ✅ capture BEFORE await
+                      setState(() => _saving = true);
+                      await Future.delayed(const Duration(milliseconds: 300));
+
+                      final now = DateTime.now();
+                      final date =
+                      '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+                      final time =
+                      '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+                      
+                      final crop = widget.plantDisease.crop;
+                      final diseaseName = widget.plantDisease.name;
+                      
+                      final newScan = ScanPreview(
+                        date: date,
+                        time: time,
+                        plantName: '$crop – $diseaseName',
+                      );
+                      
+                      final current = List<ScanPreview>.from(historyNotifier.value)..add(newScan);
+                      historyNotifier.value = current;
+                      await saveHistory(current);
+                      final now2 = DateTime.now();
+                      final t = '${now2.hour.toString().padLeft(2, '0')}:${now2.minute.toString().padLeft(2, '0')}';
+                      await addNotification(
+                        AppNotification(
+                          title: 'Scan saved',
+                          message: 'Your scan was saved to history successfully.',
+                          time: t,
+                        ),
+                      );
+                      
+                      if (!mounted) return;
+                      setState(() => _saving = false);
+                      messenger.showSnackBar( // ✅ no context here anymore
+                      const SnackBar(content: Text('Scan saved to history.')));
+
+                    },
+                    icon: _saving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.bookmark_border),
+                    label: Text(_saving ? 'Saving...' : 'Save to History'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () =>  Navigator.of(context).push(
+                      
+                      MaterialPageRoute(builder: (_) => DiseaseInfoScreen(disease: widget.plantDisease)),
+                    ),
+                    icon: const Icon(Icons.menu_book_outlined),
+                    label: const Text('View Disease Info'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.arrow_back),
+                    label: const Text('Back'),
+                  ),
+                ),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      // Pass the predicted disease data to the DiseaseInfoScreen
+                      if (!mounted) return;
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => DiseaseInfoScreen(disease: widget.plantDisease),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.menu_book_outlined),
+                    label: const Text('View Disease Info'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  static Widget _kvRow(String k, String v) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(k, style: const TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(width: 6),
+        Expanded(child: Text(v)),
+      ],
+    );
+  }
+}
+
+/// ======================= PROFILE TAB =======================
+class ProfileTab extends StatelessWidget {
+  const ProfileTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    const bg = Color(0xFFFFFDF5);
+    const darkGreen = Color(0xFF1B5E20);
+
+    return Scaffold(
+      backgroundColor: bg,
+      appBar: appBarBase('Profile', bg: bg, centerTitle: true),
+      body: ValueListenableBuilder<AppUser?>(
+        valueListenable: currentUserNotifier,
+        builder: (context, user, _) {
+          if (user == null) {
+            return const Center(child: Text('No user logged in.'));
+          }
+
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+                child: Row(
+                  children: [
+                    const CircleAvatar(
+                      radius: 28,
+                      backgroundColor: Color(0xFFE5F7E0),
+                      child: Icon(Icons.person, color: darkGreen),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(user.username, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                          const SizedBox(height: 4),
+                          Text(user.email, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                          const SizedBox(height: 2),
+                          Text(user.phone, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              _ProfileTile(
+                icon: Icons.settings_outlined,
+                title: 'Settings',
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
+              ),
+              _ProfileTile(
+                icon: Icons.info_outline,
+                title: 'About Plantlly',
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AboutScreen())),
+              ),
+              const SizedBox(height: 14),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: darkGreen,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                onPressed: () async {
+                  await clearUser();
+                  currentUserNotifier.value = null;
+
+                  if (!context.mounted) return;
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (route) => false,
+                  );
+                },
+                icon: const Icon(Icons.logout, color: Colors.white),
+                label: const Text('Log Out', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ProfileTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+
+  const _ProfileTile({required this.icon, required this.title, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    const darkGreen = Color(0xFF1B5E20);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: const Color(0xFFE5F7E0),
+                child: Icon(icon, size: 18, color: darkGreen),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w700))),
+              const Icon(Icons.chevron_right),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// ======================= HISTORY TAB =======================
+
+class HistoryTab extends StatelessWidget {
+  const HistoryTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    const bg = Color(0xFFFFFDF5);
+    
+
+    return Scaffold(
+      backgroundColor: bg,
+      appBar: appBarBase('Scan History', bg: bg, centerTitle: true),
+      body: ValueListenableBuilder<List<ScanPreview>>(
+        valueListenable: historyNotifier,
+        builder: (context, scans, _) {
+          if (scans.isEmpty) {
+            return const Center(
+              child: Text(
+                'No scans saved yet.\nScan a leaf and tap "Save to History".',
+                textAlign: TextAlign.center,
+              ),
+            );
+          }
+
+          final reversed = scans.reversed.toList();
+
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: reversed.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final item = reversed[index];
+
+              return Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha:0.03),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(
+                  children: [
+                    const CircleAvatar(
+                      radius: 22,
+                      backgroundColor: Color(0xFF9FD89B),
+                      child: Icon(Icons.spa, color: Colors.white),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(item.plantName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 4),
+                          Text('${item.date}  ·  ${item.time}',
+                              style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
 
 /// ======================= LIBRARY TAB =======================
 
@@ -1378,593 +2259,8 @@ class DiseaseListScreen extends StatelessWidget {
   }
 }
 
-/// ======================= HISTORY TAB =======================
-
-class HistoryTab extends StatelessWidget {
-  const HistoryTab({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    const bg = Color(0xFFFFFDF5);
-    
-
-    return Scaffold(
-      backgroundColor: bg,
-      appBar: appBarBase('Scan History', bg: bg, centerTitle: true),
-      body: ValueListenableBuilder<List<ScanPreview>>(
-        valueListenable: historyNotifier,
-        builder: (context, scans, _) {
-          if (scans.isEmpty) {
-            return const Center(
-              child: Text(
-                'No scans saved yet.\nScan a leaf and tap "Save to History".',
-                textAlign: TextAlign.center,
-              ),
-            );
-          }
-
-          final reversed = scans.reversed.toList();
-
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: reversed.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final item = reversed[index];
-
-              return Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha:0.03),
-                      blurRadius: 6,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                child: Row(
-                  children: [
-                    const CircleAvatar(
-                      radius: 22,
-                      backgroundColor: Color(0xFF9FD89B),
-                      child: Icon(Icons.spa, color: Colors.white),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(item.plantName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                          const SizedBox(height: 4),
-                          Text('${item.date}  ·  ${item.time}',
-                              style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// ======================= LOWER CARDS =======================
-
-class _ModelOverviewCard extends StatelessWidget {
-  const _ModelOverviewCard();
-
-  @override
-  Widget build(BuildContext context) {
-    const darkGreen = Color(0xFF1B5E20);
-
-    return Container(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Model Overview', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: darkGreen)),
-          const SizedBox(height: 8),
-          const Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _InfoChip(icon: Icons.memory_outlined, label: 'Model: EfficientNetB3'),
-              _InfoChip(icon: Icons.insights_outlined, label: 'Demo Confidence: 95%'),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Text('Demo mode: results are randomized until model inference is integrated.', style: TextStyle(fontSize: 11)),
-        ],
-      ),
-    );
-  }
-}
-
-class _TipsCard extends StatelessWidget {
-  const _TipsCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
-      padding: const EdgeInsets.all(12),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Tips', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1B5E20))),
-          SizedBox(height: 8),
-          Text(
-            '• Use a single, clear leaf in the frame.\n'
-            '• Avoid strong shadows or very dark images.\n'
-            '• Try to fill most of the image with the leaf.\n'
-            '• Scan multiple leaves for more reliable results.',
-            style: TextStyle(fontSize: 11),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _InfoChip({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(color: const Color(0xFFE5F7E0), borderRadius: BorderRadius.circular(20)),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14),
-          const SizedBox(width: 4),
-          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
-        ],
-      ),
-    );
-  }
-}
-
-/// ======================= SCAN LEAF =======================
-
-class ScanLeafScreen extends StatefulWidget {
-  const ScanLeafScreen({super.key});
-
-  @override
-  State<ScanLeafScreen> createState() => _ScanLeafScreenState();
-}
-
-class _ScanLeafScreenState extends State<ScanLeafScreen> {
-  final ImagePicker _picker = ImagePicker();
-
-  bool _permissionDenied = false;
-  String _permissionMsg = '';
-  String _permissionFor = 'Camera';
-
-  Future<void> _pick(ImageSource source) async {
-    setState(() {
-      _permissionDenied = false;
-      _permissionMsg = '';
-      _permissionFor = source == ImageSource.camera ? 'Camera' : 'Gallery';
-    });
-
-    try {
-      final XFile? image = await _picker.pickImage(
-        source: source,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 85,
-      );
-      if (image == null) return;
-
-      final bytes = await image.readAsBytes();
-      final disease = pickRandomDisease();
-
-      if (!mounted) return;
-
-      // "Analyzing..." screen (fake delay)
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const AnalyzingScreen()),
-      );
-
-      await Future.delayed(const Duration(seconds: 1));
-      if (!mounted) return;
-
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => ScanResultScreen(
-            imageBytes: bytes,
-            plantDisease: disease,
-          ),
-        ),
-      );
-    } on PlatformException {
-      setState(() {
-        _permissionDenied = true;
-        _permissionMsg =
-            'Permission is required to access ${source == ImageSource.camera ? "Camera" : "Gallery"}.\n'
-            'Please enable it in your device Settings and try again.';
-      });
-    } catch (_) {
-      setState(() {
-        _permissionDenied = true;
-        _permissionMsg = 'Something went wrong while opening the camera/gallery.';
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    const bg = Color(0xFFFFFDF5);
-
-    return Scaffold(
-      backgroundColor: bg,
-      appBar: appBarBase('Scan Leaf', bg: bg),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const SizedBox(height: 8),
-              const Text(
-                'Capture or select a photo of a plant leaf for analysis.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14),
-              ),
-
-              // ✅ Permission-friendly message card (UI only)
-              if (_permissionDenied) ...[
-                const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF2F2),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: Colors.redAccent.withValues(alpha:0.25)),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.lock_outline, color: Colors.redAccent),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Permission needed', style: TextStyle(fontWeight: FontWeight.w800)),
-                            const SizedBox(height: 6),
-                            Text(_permissionMsg, style: const TextStyle(fontSize: 12)),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                OutlinedButton(
-                                  onPressed: () => showOpenSettingsHelp(context, forWhat: _permissionFor),
-                                  child: const Text('Open Settings'),
-                                ),
-                                const SizedBox(width: 8),
-                                TextButton(
-                                  onPressed: () => setState(() {
-                                    _permissionDenied = false;
-                                    _permissionMsg = '';
-                                  }),
-                                  child: const Text('Dismiss'),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 32),
-              Row(
-                children: [
-                  Expanded(
-                    child: _ScanOptionCard(
-                      icon: Icons.camera_alt_outlined,
-                      title: 'Take Photo',
-                      onTap: () => _pick(ImageSource.camera),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _ScanOptionCard(
-                      icon: Icons.photo_library_outlined,
-                      title: 'Choose from Gallery',
-                      onTap: () => _pick(ImageSource.gallery),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Tips', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-              ),
-              const SizedBox(height: 8),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '• Use a single, clear leaf in the frame.\n'
-                  '• Avoid strong shadows or very dark images.\n'
-                  '• Try to fill most of the image with the leaf.',
-                  style: TextStyle(fontSize: 12),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ScanOptionCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final VoidCallback onTap;
-
-  const _ScanOptionCard({
-    required this.icon,
-    required this.title,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    const darkGreen = Color(0xFF1B5E20);
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: onTap,
-      child: Ink(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha:0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 40, color: darkGreen),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: darkGreen),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// ======================= SCAN RESULT =======================
-
-class ScanResultScreen extends StatefulWidget {
-  final Uint8List? imageBytes;
-  final PlantDisease plantDisease;
-
-  const ScanResultScreen({
-    super.key,
-    this.imageBytes,
-    required this.plantDisease,
-  });
-
-  @override
-  State<ScanResultScreen> createState() => _ScanResultScreenState();
-}
-
-class _ScanResultScreenState extends State<ScanResultScreen> {
-  bool _saving = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final crop = widget.plantDisease.crop;
-    final diseaseName = widget.plantDisease.name;
-
-    const confidence = 0.95; // demo
-    const modelName = 'EfficientNetB3'; // fixed
-
-    const bg = Color(0xFFFFFDF5);
-    const darkGreen = Color(0xFF1B5E20);
-
-    return Scaffold(
-      backgroundColor: bg,
-      appBar: appBarBase('Scan Result', bg: bg),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (widget.imageBytes != null)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: SizedBox(
-                      width: 140,
-                      height: 140,
-                      child: Image.memory(widget.imageBytes!, fit: BoxFit.cover),
-                    ),
-                  )
-                else
-                  Container(
-                    width: 140,
-                    height: 140,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE5F7E0),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Icon(Icons.eco_outlined, size: 48, color: darkGreen),
-                  ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Scan Result', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 8),
-                      _kvRow('Crop:', crop),
-                      const SizedBox(height: 4),
-                      _kvRow('Disease:', diseaseName),
-                      const SizedBox(height: 4),
-                      _kvRow('Model:', modelName),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(color: darkGreen, borderRadius: BorderRadius.circular(20)),
-                        child: Text(
-                          'Confidence: ${(confidence * 100).toStringAsFixed(0)}%',
-                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(color: const Color(0xFFFFF7CC), borderRadius: BorderRadius.circular(18)),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Summary', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                  const SizedBox(height: 8),
-                  Text(widget.plantDisease.summary, style: const TextStyle(fontSize: 12)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text('Suggested Actions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            Text(widget.plantDisease.suggestedActions, style: const TextStyle(fontSize: 13)),
-            const Spacer(),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _saving
-                    ? null
-                    : () async {
-                      final messenger = ScaffoldMessenger.of(context); // ✅ capture BEFORE await
-                      setState(() => _saving = true);
-                      await Future.delayed(const Duration(milliseconds: 300));
-
-                    final now = DateTime.now();
-                    final date =
-                    '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-                    final time =
-                    '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-                    
-                    final crop = widget.plantDisease.crop;
-                    final diseaseName = widget.plantDisease.name;
-                    
-                    final newScan = ScanPreview(
-                      date: date,
-                      time: time,
-                      plantName: '$crop – $diseaseName',
-                    );
-                    
-                    final current = List<ScanPreview>.from(historyNotifier.value)..add(newScan);
-                    historyNotifier.value = current;
-                    await saveHistory(current);
-                    final now2 = DateTime.now();
-                    final t = '${now2.hour.toString().padLeft(2, '0')}:${now2.minute.toString().padLeft(2, '0')}';
-                    await addNotification(
-                      AppNotification(
-                        title: 'Scan saved',
-                        message: 'Your scan was saved to history successfully.',
-                        time: t,
-                      ),
-                    );
-                    
-                    if (!mounted) return;
-                    setState(() => _saving = false);
-                    messenger.showSnackBar( // ✅ no context here anymore
-                    const SnackBar(content: Text('Scan saved to history.')),
-                  );
-                },
-
-                    icon: _saving
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.bookmark_border),
-                    label: Text(_saving ? 'Saving...' : 'Save to History'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => DiseaseInfoScreen(disease: widget.plantDisease)),
-                    ),
-                    icon: const Icon(Icons.menu_book_outlined),
-                    label: const Text('View Disease Info'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back),
-                    label: const Text('Back'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static Widget _kvRow(String k, String v) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(k, style: const TextStyle(fontWeight: FontWeight.w600)),
-        const SizedBox(width: 6),
-        Expanded(child: Text(v)),
-      ],
-    );
-  }
-}
 
 /// ======================= DISEASE INFO =======================
-
 class DiseaseInfoScreen extends StatelessWidget {
   final PlantDisease disease;
 
@@ -1999,244 +2295,7 @@ class DiseaseInfoScreen extends StatelessWidget {
   }
 }
 
-/// ======================= PROFILE TAB =======================
-
-class ProfileTab extends StatelessWidget {
-  const ProfileTab({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    const bg = Color(0xFFFFFDF5);
-    const darkGreen = Color(0xFF1B5E20);
-
-    return Scaffold(
-      backgroundColor: bg,
-      appBar: appBarBase('Profile', bg: bg, centerTitle: true),
-      body: ValueListenableBuilder<AppUser?>(
-        valueListenable: currentUserNotifier,
-        builder: (context, user, _) {
-          if (user == null) {
-            return const Center(child: Text('No user logged in.'));
-          }
-
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-                child: Row(
-                  children: [
-                    const CircleAvatar(
-                      radius: 28,
-                      backgroundColor: Color(0xFFE5F7E0),
-                      child: Icon(Icons.person, color: darkGreen),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(user.username, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                          const SizedBox(height: 4),
-                          Text(user.email, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                          const SizedBox(height: 2),
-                          Text(user.phone, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              _ProfileTile(
-                icon: Icons.settings_outlined,
-                title: 'Settings',
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
-              ),
-              _ProfileTile(
-                icon: Icons.info_outline,
-                title: 'About Plantlly',
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AboutScreen())),
-              ),
-              const SizedBox(height: 14),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: darkGreen,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-                onPressed: () async {
-                  await clearUser();
-                  currentUserNotifier.value = null;
-
-                  if (!context.mounted) return;
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    (route) => false,
-                  );
-                },
-                icon: const Icon(Icons.logout, color: Colors.white),
-                label: const Text('Log Out', style: TextStyle(color: Colors.white)),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _ProfileTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final VoidCallback onTap;
-
-  const _ProfileTile({required this.icon, required this.title, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    const darkGreen = Color(0xFF1B5E20);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: const Color(0xFFE5F7E0),
-                child: Icon(icon, size: 18, color: darkGreen),
-              ),
-              const SizedBox(width: 12),
-              Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w700))),
-              const Icon(Icons.chevron_right),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// ======================= SETTINGS SCREEN =======================
-
-class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    const bg = Color(0xFFFFFDF5);
-
-    return Scaffold(
-      backgroundColor: bg,
-      appBar: appBarBase('Settings', bg: bg),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: const [
-          _SettingRow(title: 'Theme', value: 'Light (fixed)'),
-          _SettingRow(title: 'Language', value: 'English (fixed)'),
-          _SettingSwitch(title: 'Notifications', value: true),
-          SizedBox(height: 10),
-          _SettingRow(title: 'App Version', value: '1.0.0'),
-          _SettingRow(title: 'Privacy Policy', value: 'Placeholder'),
-          _SettingRow(title: 'Terms & Conditions', value: 'Placeholder'),
-        ],
-      ),
-    );
-  }
-}
-
-class _SettingRow extends StatelessWidget {
-  final String title;
-  final String value;
-
-  const _SettingRow({required this.title, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-      child: Row(
-        children: [
-          Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w700))),
-          Text(value, style: const TextStyle(color: Colors.grey)),
-        ],
-      ),
-    );
-  }
-}
-
-class _SettingSwitch extends StatelessWidget {
-  final String title;
-  final bool value;
-
-  const _SettingSwitch({required this.title, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-      child: Row(
-        children: [
-          Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w700))),
-          Switch(value: value, onChanged: null),
-        ],
-      ),
-    );
-  }
-}
-
-/// ======================= ABOUT SCREEN =======================
-
-class AboutScreen extends StatelessWidget {
-  const AboutScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    const bg = Color(0xFFFFFDF5);
-
-    return Scaffold(
-      backgroundColor: bg,
-      appBar: appBarBase('About Plantlly', bg: bg),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-          child: const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Plantlly', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
-              SizedBox(height: 8),
-              Text(
-                'Plantlly is a plant disease detection demo app.\n'
-                'It provides educational guidance based on sample disease cards.\n\n'
-                'Disclaimer: Results are for educational purposes and should not replace professional advice.',
-                style: TextStyle(fontSize: 13),
-              ),
-              SizedBox(height: 12),
-              Text('Version: 1.0.0', style: TextStyle(fontSize: 12, color: Colors.grey)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// ======================= NOTIFICATIONS SCREEN =======================
-
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
 
@@ -2323,33 +2382,107 @@ class NotificationsScreen extends StatelessWidget {
   }
 }
 
-/// ======================= ANALYZING SCREEN =======================
-
-class AnalyzingScreen extends StatelessWidget {
-  const AnalyzingScreen({super.key});
+/// ======================= SETTINGS SCREEN =======================
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     const bg = Color(0xFFFFFDF5);
-    const darkGreen = Color(0xFF1B5E20);
 
     return Scaffold(
       backgroundColor: bg,
-      appBar: appBarBase('Analyzing...', bg: bg),
-      body: Center(
+      appBar: appBarBase('Settings', bg: bg),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: const [
+          _SettingRow(title: 'Theme', value: 'Light (fixed)'),
+          _SettingRow(title: 'Language', value: 'English (fixed)'),
+          _SettingSwitch(title: 'Notifications', value: true),
+          SizedBox(height: 10),
+          _SettingRow(title: 'App Version', value: '1.0.0'),
+          _SettingRow(title: 'Privacy Policy', value: 'Placeholder'),
+          _SettingRow(title: 'Terms & Conditions', value: 'Placeholder'),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingRow extends StatelessWidget {
+  final String title;
+  final String value;
+
+  const _SettingRow({required this.title, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      child: Row(
+        children: [
+          Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w700))),
+          Text(value, style: const TextStyle(color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingSwitch extends StatelessWidget {
+  final String title;
+  final bool value;
+
+  const _SettingSwitch({required this.title, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      child: Row(
+        children: [
+          Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w700))),
+          Switch(value: value, onChanged: null),
+        ],
+      ),
+    );
+  }
+}
+
+/// ======================= ABOUT SCREEN =======================
+class AboutScreen extends StatelessWidget {
+  const AboutScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    const bg = Color(0xFFFFFDF5);
+
+    return Scaffold(
+      backgroundColor: bg,
+      appBar: appBarBase('About Plantlly', bg: bg),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
         child: Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
           child: const Column(
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 12),
+              Text('Plantlly', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+              SizedBox(height: 8),
               Text(
-                'Analyzing your leaf...\nPlease wait a moment.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: darkGreen),
+                'Plantlly is a plant disease detection demo app.\n'
+                'It provides educational guidance based on sample disease cards.\n\n'
+                'Disclaimer: Results are for educational purposes and should not replace professional advice.',
+                style: TextStyle(fontSize: 13),
               ),
+              SizedBox(height: 12),
+              Text('Version: 1.0.0', style: TextStyle(fontSize: 12, color: Colors.grey)),
             ],
           ),
         ),

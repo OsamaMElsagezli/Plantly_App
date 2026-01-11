@@ -1,6 +1,5 @@
-fastapi
-uvicorn
-python-multipart
-pillow
-torch
-timm
+fastapi==0.75.0
+uvicorn==0.17.0
+torch==1.10.0  # Make sure to use a version compatible with your environment
+timm==0.4.9
+Pillow==8.4.0

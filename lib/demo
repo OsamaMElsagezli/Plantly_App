@@ -1,0 +1,411 @@
+/// ======================= PERSISTENCE HELPERS =======================
+
+Future<void> saveUser(AppUser user) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString('username', user.username);
+  await prefs.setString('email', user.email);
+  await prefs.setString('phone', user.phone);
+  await prefs.setString('password', user.password);
+}
+
+Future<AppUser?> loadUser() async {
+  final prefs = await SharedPreferences.getInstance();
+
+  final username = prefs.getString('username');
+  final email = prefs.getString('email');
+  final phone = prefs.getString('phone');
+  final password = prefs.getString('password');
+
+  if (username == null || email == null || password == null) return null;
+
+  return AppUser(
+    username: username,
+    email: email,
+    phone: phone ?? '',
+    password: password,
+  );
+}
+
+Future<void> clearUser() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove('username');
+  await prefs.remove('email');
+  await prefs.remove('phone');
+  await prefs.remove('password');
+}
+
+/// ======================= SPLASH =======================
+
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _bootstrap();
+  }
+
+  // Bootstrapping the app: Check for saved user and navigate accordingly
+  Future<void> _bootstrap() async {
+    await Future.delayed(const Duration(seconds: 2));  // Simulate splash screen delay
+
+    if (!mounted) return;
+
+    final savedUser = await loadUser();  // Load user from shared preferences
+
+    if (savedUser != null) {
+      _ensureUserInMemory(savedUser);  // Restore user to in-memory list
+      currentUserNotifier.value = savedUser;  // Update the current user
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const HomeShell()),  // Navigate to HomeShell if user is found
+      );
+    } else {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),  // Navigate to LoginScreen if no user is found
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const backgroundColor = Color(0xFFD9F5D1);  // Light green background
+    const darkGreen = Color(0xFF2E7D32);  // Dark green color for text and icon
+
+    return Scaffold(
+      backgroundColor: backgroundColor,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircleAvatar(
+              radius: 60,
+              backgroundColor: Colors.white,
+              child: Icon(Icons.spa, size: 60, color: darkGreen),  // The spa icon
+            ),
+            const SizedBox(height: 24),  // Space between icon and text
+            const Text(
+              'Plantlly',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.w800,  // Bold font
+                color: darkGreen,  // Dark green text color
+                letterSpacing: 0.5,  // Small letter spacing
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// ======================= LOGIN =======================
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _identifierController = TextEditingController(); // username or email
+  final _passwordController = TextEditingController();
+  bool _isSubmitting = false;
+
+  @override
+  void dispose() {
+    _identifierController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _tryLogin() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final id = _identifierController.text.trim();
+    final pw = _passwordController.text;
+
+    setState(() => _isSubmitting = true);
+
+    await Future.delayed(const Duration(milliseconds: 250));
+    if (!mounted) return;
+
+    final idLower = id.toLowerCase();
+    final match = _registeredUsers.where((u) {
+      return (u.username.toLowerCase() == idLower || u.email.toLowerCase() == idLower) && u.password == pw;
+    }).toList();
+
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+
+    if (match.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No matching account found or wrong password.\n'
+            'Please sign up first if you don\'t have an account.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final user = match.first;
+    _ensureUserInMemory(user);
+    currentUserNotifier.value = user;
+    await saveUser(user);
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const HomeShell()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const bg = Color(0xFFFFFDF5);
+    const darkGreen = Color(0xFF1B5E20);
+
+    return Scaffold(
+      backgroundColor: bg,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Column(
+              children: [
+                const Icon(Icons.spa, size: 64, color: darkGreen),
+                const SizedBox(height: 12),
+                const Text(
+                  'Welcome to Plantlly',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: darkGreen),
+                ),
+                const SizedBox(height: 4),
+                const Text('Log in to continue', style: TextStyle(fontSize: 13)),
+                const SizedBox(height: 24),
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: _identifierController,
+                        decoration: const InputDecoration(
+                          labelText: 'Username or Email',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Please enter your username or email.';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Password',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) => (value == null || value.isEmpty) ? 'Please enter your password.' : null,
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Forgot password flow will be added later.')),
+                            );
+                          },
+                          child: const Text('Forgot password?'),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: _isSubmitting ? null : _tryLogin,
+                          child: _isSubmitting
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Text('Log In'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('Don\'t have an account?'),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const SignupScreen()),
+                      ),
+                      child: const Text('Sign up'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// ======================= SIGNUP =======================
+
+class SignupScreen extends StatefulWidget {
+  const SignupScreen({super.key});
+
+  @override
+  State<SignupScreen> createState() => _SignupScreenState();
+}
+
+class _SignupScreenState extends State<SignupScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isSubmitting = false;
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _trySignup() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final username = _usernameController.text.trim();
+    final email = _emailController.text.trim();
+    final phone = _phoneController.text.trim();
+    final password = _passwordController.text;
+
+    final exists = _registeredUsers.any((u) =>
+        u.username.toLowerCase() == username.toLowerCase() || u.email.toLowerCase() == email.toLowerCase());
+
+    if (exists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('An account with that username or email already exists.')),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+
+    _registeredUsers.add(
+      AppUser(username: username, email: email, phone: phone, password: password),
+    );
+
+    setState(() => _isSubmitting = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Account created. You can now log in.')),
+    );
+
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const bg = Color(0xFFFFFDF5);
+
+    return Scaffold(
+      backgroundColor: bg,
+      appBar: appBarBase('Sign up', bg: bg),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            children: [
+              const SizedBox(height: 4),
+              const Text(
+                'Create your Plantlly account',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1B5E20)),
+              ),
+              const SizedBox(height: 16),
+              Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    TextFormField(
+                      controller: _usernameController,
+                      decoration: const InputDecoration(labelText: 'Username', border: OutlineInputBorder()),
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter a username.' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _emailController,
+                      decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Enter an email.';
+                        if (!v.contains('@') || !v.contains('.')) return 'Enter a valid email.';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _phoneController,
+                      decoration: const InputDecoration(labelText: 'Phone', border: OutlineInputBorder()),
+                      keyboardType: TextInputType.phone,
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter a phone number.' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _passwordController,
+                      decoration: const InputDecoration(labelText: 'Password', border: OutlineInputBorder()),
+                      obscureText: true,
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return 'Enter a password.';
+                        if (v.length < 6) return 'Password must be at least 6 characters.';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: _isSubmitting ? null : _trySignup,
+                        child: _isSubmitting
+                            ? const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text('Create Account'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

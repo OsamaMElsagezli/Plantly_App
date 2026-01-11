@@ -1,85 +1,57 @@
-import io
-import json
 import torch
-import torch.nn.functional as F
-from pathlib import Path
-from fastapi import FastAPI, File, UploadFile, Query, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
+from torchvision import models, transforms
 from PIL import Image
-import timm
+import json
+import torch.nn.functional as F
+import numpy as np
+import io
 
-# Paths for the model bundles and configuration files
-HERE = Path(__file__).resolve().parent
-BUNDLE_EFFB3 = HERE / "models" / "efficientnetb3" / "efficientnet_b3_bundle_20251223-132415.pth"
-LABELS_EFFB3 = HERE / "models" / "efficientnetb3" / "labels.txt"
-CONFIG_EFFB3 = HERE / "models" / "efficientnetb3" / "config.json"
-
-BUNDLE_MNV2 = HERE / "models" / "mobilenetv2" / "mobilenetv2_100_bundle_20251223-135331.pth"
-LABELS_MNV2 = HERE / "models" / "mobilenetv2" / "labels.txt"
-CONFIG_MNV2 = HERE / "models" / "mobilenetv2" / "config.json"
-
-# Initialize FastAPI
-app = FastAPI(title="Plant Disease Inference API")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
-# Model loading function with error handling
-import timm
-
-def load_model(model_path: Path, model_name: str, num_classes: int) -> torch.nn.Module:
+# Load models with error handling
+def load_model(model_path: str):
     try:
-        # Create the model first
-        model = timm.create_model(model_name, pretrained=False, num_classes=num_classes)
-        
-        # Now load the model weights
-        model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
-        model.eval()  # Set the model to evaluation mode
+        model = torch.load(model_path, map_location=torch.device('cpu'))
+        model.eval()
         return model
     except Exception as e:
         raise RuntimeError(f"Failed to load model from {model_path}: {e}")
 
+# Load model files
+model_eff = load_model("models/efficientnet_b3_bundle_20251223-132415.pth")
+model_mob = load_model("models/mobilenetv2_100_bundle_20251223-135331.pth")
 
-# Load models
-# Load EfficientNetB3 model
-model_eff = load_model(BUNDLE_EFFB3, model_name="efficientnet_b3", num_classes=1000)
-
-# Load MobileNetV2 model
-model_mob = load_model(BUNDLE_MNV2, model_name="mobilenetv2_100", num_classes=1000)
-
-
-# Load labels function with error handling
-def load_labels(labels_path: Path) -> list:
+# Load labels with error handling
+def load_labels(labels_path: str):
     try:
         with open(labels_path, "r") as f:
             return json.load(f)
     except Exception as e:
         raise RuntimeError(f"Failed to load labels from {labels_path}: {e}")
 
-labels = load_labels(LABELS_EFFB3)
+labels = load_labels("labels (1).json")
 
-# Load config function with error handling
-def load_config(config_path: Path) -> dict:
+# Load config with error handling
+def load_config(config_path: str):
     try:
         with open(config_path, "r") as f:
             return json.load(f)
     except Exception as e:
         raise RuntimeError(f"Failed to load config from {config_path}: {e}")
 
-config = load_config(CONFIG_EFFB3)
+config = load_config("config.json")
 
-# Image preprocessing function based on config
+# Initialize FastAPI
+app = FastAPI()
+
+# Image preprocessing function (based on config)
 def preprocess_image(image: Image.Image):
-    transform = timm.data.transforms.Resize(config["input_size"])
-    return transform(image).unsqueeze(0)
+    transform = transforms.Compose([
+        transforms.Resize((config["input_size"], config["input_size"])),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=config["mean"], std=config["std"]),
+    ])
+    return transform(image).unsqueeze(0)  # Add batch dimension
 
 # Helper function for inference
 def predict(image_bytes: bytes):

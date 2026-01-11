@@ -1,26 +1,28 @@
 name: my_first_app
 description: A new Flutter project.
 
-publish_to: 'none'
+publish_to: 'none'  # Set to 'none' to avoid publishing to pub.dev
 
-version: 1.0.0+1
+version: 1.0.0+1  # Versioning
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
+  sdk: ">=3.0.0 <4.0.0"  # Ensures compatibility with the latest Flutter SDK version
 
 dependencies:
+  http: ^1.2.2  # Updated HTTP package version for network calls
   flutter:
-    sdk: flutter
+    sdk: flutter  # Ensure using the latest Flutter SDK
 
-  cupertino_icons: ^1.0.8
-  image_picker: ^1.2.1
-  shared_preferences: ^2.2.3
+  cupertino_icons: ^1.0.8  # Cupertino icons package
+  image_picker: ^1.2.1  # Image picker package for picking images from the camera or gallery
+  shared_preferences: ^2.2.3  # Shared preferences package for storing simple data locally
+  # You can add other dependencies as needed
 
 dev_dependencies:
   flutter_test:
-    sdk: flutter
-
-  flutter_lints: ^3.0.0
+    sdk: flutter  # Flutter testing dependencies
+  flutter_lints: ^6.0.0  # Linting dependencies to ensure coding standards
+  lints: ^6.0.0  # Latest linting package for more comprehensive checks
 
 flutter:
-  uses-material-design: true
+  uses-material-design: true  # Ensures the app uses Material Design components
