@@ -29,7 +29,11 @@ The final, best-performing model (EfficientNetB3) was exported and integrated in
 
 ## 📚 References
 
-Key related work referenced in this project includes studies using handcrafted features with Random Forest classifiers (~92.8% accuracy), ResNet50 + Vision Transformer hybrids (~90.12%), comparative CNN studies on tomato/corn leaves (~95%), and transfer-learning approaches such as AgriNet (~90.6%). Plantly's EfficientNetB3-based approach matches or outperforms these while remaining lightweight enough for practical mobile deployment. Full citations are available in the project report.
+1. Dolatabadian, A., Neik, T. X., Danilevicz, M. F., Upadhyaya, S. R., Batley, J., & Edwards, D. (2024). Image-based crop disease detection using machine learning. *Journal of Applied Machine Learning in Agriculture*.
+2. Food and Agriculture Organization of the United Nations. (2023, July). *New AI technology to fight plant pests and diseases.*
+3. Kulkarni, P., Karwande, A., Kolhe, T., Kamble, S., Joshi, A., & Wyawahare, M. (2020). Plant disease detection using image processing and machine learning. *International Journal of Emerging Trends in Engineering and Technology*.
+4. Kabir Oni, M., & Tanzin Prama, T. (2025). Optimized custom CNN for real-time tomato leaf disease detection. *Journal of Agricultural Informatics*.
+5. Rezaei, M., Diepeveen, D., Laga, H., Jones, M. G. K., & Sohel, F. (2024). Plant disease recognition in a low-data scenario using few-shot learning. *Computers and Electronics in Agriculture*.
 
 ---
 
