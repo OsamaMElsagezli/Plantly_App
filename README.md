@@ -1,5 +1,5 @@
 
-## 📱 Mobile App — Plantly
+## 📱 Mobile App: Plantly
 
 The final, best-performing model (EfficientNetB3) was exported and integrated into **Plantly**, a cross-platform mobile application built with **Flutter and Dart**, enabling:
 
