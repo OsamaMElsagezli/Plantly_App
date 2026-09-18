@@ -1,40 +1,127 @@
+# 🌿 Plantly
 
-## 📱 Mobile App: Plantly
+### AI-Powered Plant Disease Detection App
 
-The final, best-performing model (EfficientNetB3) was exported and integrated into **Plantly**, a cross-platform mobile application built with **Flutter and Dart**, enabling:
+Plantly is a Flutter app designed to help users explore plant health through leaf photographs. Capture a leaf image or choose one from your gallery, submit it for AI analysis, and browse information about plant diseases, symptoms, and care.
 
-- Real-time plant disease detection directly from a leaf photo
-- Practical, on-the-go use for farmers and agricultural workers, including in resource-limited or remote regions
-- A dual execution model — cloud-hosted inference alongside a lighter on-device path for edge/local processing
+Built as a graduation project, Plantly brings plant disease classification research into a practical mobile interface.
 
-## 🔬 Results Summary
+> 🚧 **Development status:** The app’s interface, image upload, and disease library are implemented. Prediction integration and the connection to detailed results and scan history are still being completed.
 
-- EfficientNetB3: **99.75% test accuracy**, 99.81% validation accuracy, 96.96% accuracy on the more realistic PlantDoc test set
-- Confusion matrix analysis showed EfficientNetB3 had very few misclassifications, correctly classifying 320/321 images in the Tomato Yellow Leaf Curl Virus class and near-perfect results across most of the 15 classes
-- ResNet50 offered strong, stable generalization with a good speed/accuracy balance
-- VGG16 achieved competitive accuracy but showed signs of overfitting (fluctuating loss/accuracy curves) and had by far the largest model size and slowest training
-- MobileNetV2 was the smallest and fastest model, well-suited for mobile/edge deployment, but noticeably weaker on real-field (PlantDoc) images
+## 📱 App Features
 
-## 🚀 Future Work
+### 📷 Scan a Leaf
+Take a photograph using the camera or select an existing image from the gallery and upload it for analysis.
 
-- **Mobile app development** — further build-out of the Plantly app
-- **Sensor integration** for a multi-modal, context-aware prediction system, combining image-based diagnosis with environmental sensor data (soil moisture, temperature, humidity), using hardware such as:
-  - Soil moisture sensor (HW080)
-  - Water level sensor (HW038)
-  - Vibration/tilt sensor (SW-18010P)
-  - ESP32-CAM for wireless image capture and Wi-Fi telemetry
-  - DHT11 temperature & humidity module
-- Broadening dataset scope to include root and stem disease anomalies
-- Reducing inference latency further for low-tier/edge hardware
+### 📚 Explore Plant Diseases
+Browse disease information, including symptoms, overviews, and management guidance. The current library contains tomato and potato entries, with pepper content planned.
 
-## 📚 References
+### 👤 Profile and Account Screens
+Create a local demonstration account, log in, and view your profile. The app can restore the last saved session.
 
-1. Dolatabadian, A., Neik, T. X., Danilevicz, M. F., Upadhyaya, S. R., Batley, J., & Edwards, D. (2024). Image-based crop disease detection using machine learning. *Journal of Applied Machine Learning in Agriculture*.
-2. Food and Agriculture Organization of the United Nations. (2023, July). *New AI technology to fight plant pests and diseases.*
-3. Kulkarni, P., Karwande, A., Kolhe, T., Kamble, S., Joshi, A., & Wyawahare, M. (2020). Plant disease detection using image processing and machine learning. *International Journal of Emerging Trends in Engineering and Technology*.
-4. Kabir Oni, M., & Tanzin Prama, T. (2025). Optimized custom CNN for real-time tomato leaf disease detection. *Journal of Agricultural Informatics*.
-5. Rezaei, M., Diepeveen, D., Laga, H., Jones, M. G. K., & Sohel, F. (2024). Plant disease recognition in a low-data scenario using few-shot learning. *Computers and Electronics in Agriculture*.
+### 🕘 History and Notifications
+Dedicated screens are included for saved scan summaries and in-app notifications. Connecting these features to the active scan flow is pending.
 
----
+## 🔄 Current Scan Flow
 
-*This README was generated from the project report and presentation materials for the Plantly graduation project (Istanbul Bilgi University, January 2026).*
+1. Open Plantly and log in or create a demonstration account.
+2. Select **Scan Leaf** from the home screen.
+3. Capture a photograph or choose one from your gallery.
+4. The app uploads the image to the prediction server.
+5. The scan screen displays the server response.
+
+A separate result screen has been designed to display the diagnosis, confidence, plant-care guidance, and a **Save to History** action. Its integration is in progress.
+
+## 🧠 AI Behind the App
+
+Plantly includes backend model bundles for **EfficientNetB3** and **MobileNetV2**. Their label definitions cover **15 classes** across:
+
+- 🍅 Tomato
+- 🥔 Potato
+- 🫑 Bell pepper
+
+These classes include healthy leaves, plant diseases, and pest damage.
+
+Image analysis is intended to run through a Python prediction server. On-device inference is a future development goal.
+
+### Research Performance
+
+The accompanying research reports these results for EfficientNetB3:
+
+| Evaluation | Accuracy |
+|---|---:|
+| Test set | 99.75% |
+| Validation set | 99.81% |
+| PlantDoc testing | 96.96% |
+
+These figures describe the research model evaluation, rather than the current app’s end-to-end performance.
+
+## 🛠️ Built With
+
+| Component | Technology |
+|---|---|
+| App interface | Flutter and Dart |
+| Camera and gallery | Image Picker |
+| API communication | HTTP multipart upload |
+| Local storage | Shared Preferences |
+| Prediction server | FastAPI and Python |
+| AI models | PyTorch and timm |
+
+## 🚀 Run the App
+
+### Requirements
+
+- Flutter **3.35+**
+- Dart **3.9+**
+- Platform development tools and a connected device or emulator
+
+From the repository root:
+
+```bash
+flutter pub get
+flutter run
+```
+
+### Prediction Server
+
+The scan screen currently targets:
+
+```text
+http://10.0.2.2:8000/predict
+```
+
+This address is intended for the standard Android emulator. Other devices require a reachable server address.
+
+**The included backend needs integration fixes before inference works with the supplied model bundles**, including checkpoint loading, configuration parsing, preprocessing, and response formatting.
+
+## 📁 Repository Overview
+
+```text
+├── lib/          # Flutter app screens and logic
+├── server/       # Prediction API and AI model bundles
+├── android/      # Android project
+├── ios/          # iOS project
+├── web/          # Web project
+├── windows/      # Windows project
+├── macos/        # macOS project
+├── linux/        # Linux project
+└── test/         # Test scaffold
+```
+
+Flutter platform projects are included, but functionality has not been verified across every platform.
+
+## 🗺️ Planned Improvements
+
+- [ ] Complete prediction-server integration.
+- [ ] Connect detailed results, history, and notifications.
+- [ ] Complete disease information for every supported class.
+- [ ] Add secure account management.
+- [ ] Improve loading states and upload error handling.
+- [ ] Validate camera, permissions, and networking across platforms.
+- [ ] Explore offline, on-device analysis.
+
+## 📌 Project Notes
+
+Account management currently serves demonstration purposes and stores credentials locally in plain preferences. It is not ready for production authentication.
+
+Plantly is an educational application. Its predictions and plant-care information should support further inspection and consultation with an agricultural specialist.
